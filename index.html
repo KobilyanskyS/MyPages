@@ -1,0 +1,162 @@
+<!doctype html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Calendar</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+</head>
+
+<body>
+    <div class="container">
+        <header class="d-flex flex-wrap justify-content-center py-3 mb-4 border-bottom">
+            <a href="/" class="d-flex align-items-center mb-3 mb-md-0 me-md-auto text-dark text-decoration-none">
+                <svg class="bi me-2" width="40" height="32">
+                    <use xlink:href="#bootstrap"></use>
+                </svg>
+                <span class="fs-4">Простой заголовок</span>
+            </a>
+            <ul class="nav nav-pills">
+                <li class="nav-item"><a href="#" class="nav-link active" aria-current="page">Главная</a></li>
+                <li class="nav-item"><a href="#" class="nav-link">Link</a></li>
+                <li class="nav-item"><a href="#" class="nav-link">Link</a></li>
+                <li class="nav-item"><a href="#" class="nav-link">Link</a></li>
+                <li class="nav-item"><a href="#" class="nav-link">Link</a></li>
+            </ul>
+        </header>
+
+        <!-- Таблица, в которую мы загружаем данные -->
+        <table class="table table-bordered tb"></table>
+
+        <div class="modal fade" id="exampleModalToggle" aria-hidden="true" aria-labelledby="exampleModalToggleLabel"
+            tabindex="-1">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h1 class="modal-title fs-5" id="exampleModalToggleLabel">Создать запись</h1>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Дата: <span class="date"></span></p>
+                        <p>Время: <span class="time"></span></p>
+                    </div>
+                    <div class="modal-footer">
+                        <form>
+                            <input type="hidden" name="datetime" value="">
+                            <input type="submit" class="btn btn-primary" value="Создать запись">
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL"
+        crossorigin="anonymous"></script>
+    <script>
+
+        async function loadJSONFile(filename) {
+            try {
+                const response = await fetch(filename);
+                if (!response.ok) {
+                    throw new Error(`Ошибка загрузки файла: ${filename}`);
+                }
+                return await response.json();
+            } catch (error) {
+                console.error(error);
+                return null;
+            }
+        }
+
+        // Загружаем JSON файл и выполняем действия после успешной загрузки
+        loadJSONFile('data.json')
+            .then(data => {
+                if (!data) {
+                    console.error('Данные JSON не загружены.');
+                    return;
+                }
+
+                const dates = data.map(item => {
+                    const date = moment(item.date);
+                    return {
+                        day: date.format('YYYY-MM-DD'),
+                        hour: date.format('HH:mm'),
+                    }
+                });
+
+                const uniqueDatesFromData = [...new Set(dates.map(date => date.day))];
+
+                const today = moment();
+                let uniqueDates = [];
+                for (let i = 0; i < 7; i++) {
+                    uniqueDates.push(moment(today).add(i, 'days').format('YYYY-MM-DD'));
+                }
+
+                let theadHTML = '<thead><tr>';
+                let tbodyHTML = '';
+
+                uniqueDates.forEach(date => {
+                    theadHTML += `<th scope="col">${moment(date).format('DD.MM.YYYY')}</th>`;
+                });
+
+                theadHTML += '</tr></thead>';
+
+                for (let hour = 9; hour <= 23; hour++) {
+                    const hourStr = hour.toString().padStart(2, '0') + ":00";
+                    tbodyHTML += '<tr>';
+
+                    uniqueDates.forEach(date => {
+                        const isDisabled = dates.find(d => d.day === date && d.hour === hourStr) ? true : false;
+                        const btnClass = isDisabled ? 'btn-secondary' : 'btn-primary';
+                        const disabledAttr = isDisabled ? 'disabled' : '';
+                        const valueAttr = !isDisabled ? `value="${date} ${hourStr}:00"` : '';
+                        const modalAttr = !isDisabled ? `data-bs-target="#exampleModalToggle" data-bs-toggle="modal"` : '';
+                        tbodyHTML += `<td><button type="button" class="btn ${btnClass}" ${disabledAttr} ${valueAttr} ${modalAttr} onclick="getDateTime(this)">${hourStr}</button></td>`;
+                    });
+
+                    tbodyHTML += '</tr>';
+                }
+
+                tbodyHTML = `<tbody>${tbodyHTML}</tbody>`;
+
+                document.querySelector('.tb').innerHTML += `${theadHTML}${tbodyHTML}`;
+
+            });
+
+
+    </script>
+
+    <script>
+        function getDateTime(e) {
+            let datetimeValue = e.getAttribute('value');
+
+            const dateObj = new Date(datetimeValue);
+
+            // Получение даты в формате "29 ноября"
+            const options = { day: "numeric", month: "long" };
+            const date = dateObj.toLocaleDateString("ru-RU", options);
+
+            // Получение времени в формате "15:00"
+            const time = dateObj.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+
+            // Устанавливаем значение для input и span
+            let inputElement = document.querySelector('input[name=datetime]');
+            let dateSpan = document.querySelector('.date');
+            let timeSpan = document.querySelector('.time');
+
+            inputElement.setAttribute('value', datetimeValue);
+            dateSpan.innerHTML = date;
+            timeSpan.innerHTML = time;
+        };
+    </script>
+
+
+</body>
+
+</html>
